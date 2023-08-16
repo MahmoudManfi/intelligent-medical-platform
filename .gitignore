@@ -1,0 +1,13 @@
+__pycache__
+.venv
+build
+dist
+my_env
+tmp.ipynb
+tmp.py
+sql_app.db
+migrations
+models
+server.egg-info
+uploads
+modelcancerlung.h5
