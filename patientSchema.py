@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional,Union,List
-import server.patientMedicalDataSchema
+import patientMedicalDataSchema
 class PatientBase(BaseModel):
     fullName: str
     age: str
@@ -32,7 +32,7 @@ class Patient(PatientBase):
 
 class PatientPatientMedicalData(PatientBase):
     id: int
-    patientsMedicalData: List[server.patientMedicalDataSchema.PatientMedicalData] = []
+    patientsMedicalData: List[patientMedicalDataSchema.PatientMedicalData] = []
 
     class Config:
         orm_mode = True

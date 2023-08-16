@@ -19,27 +19,25 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from keras.models import load_model
 from sqlalchemy.orm import Session
-import server.jwtTokens
-import server.doctorCRUD
+import jwtTokens
+import doctorCRUD
 import doctorModel
 import doctorSchema
-import server.patientCRUD
-import server.PatientMedicalDataCRUD
+import patientCRUD
+import PatientMedicalDataCRUD
 import patientModel
 import patientSchema
 import patientMedicalDataModel
 import patientMedicalDataSchema
-
 from database import SessionLocal, engine
+from glob import glob
+from werkzeug.utils import secure_filename
 
 doctorModel.Base.metadata.create_all(bind=engine)
-
-from glob import glob
-
-from werkzeug.utils import secure_filename
 # token:server.doctorSchema.Token=Depends(server.jwtTokens.decode_access_token)
 
 classes = ["AdenocarcinomaChest Lung Cancer ","Large cell carcinoma Lung Cancer" , "NO Lung Cancer/ NORMAL" , "Squamous cell carcinoma Lung Cancer"]
+
 def get_db():
     db = SessionLocal()
     try:
@@ -50,7 +48,7 @@ def get_db():
 def get_model():
     tf.device('/CPU:0')
     global model
-    model = load_model("modelcancerlung.h5",compile=False)
+    model = load_model("models/modelcancerlung.h5",compile=False)
     print(" * Model loaded!")
 
 def preprocess_image(img):
@@ -82,7 +80,7 @@ async def predict():
 @app.post("/doctors", response_model=doctorSchema.Doctor)
 async def create_doctor(doctor: doctorSchema.DoctorCreate, db: Session = Depends(get_db)):
     regex = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b'
-    db_user = server.doctorCRUD.get_user_by_email(db, email=doctor.email)
+    db_user = doctorCRUD.get_user_by_email(db, email=doctor.email)
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     if((not doctor.email or doctor.email.isspace())or (not doctor.password or doctor.password.isspace())or(not doctor.displayName or doctor.displayName.isspace())):
@@ -93,16 +91,16 @@ async def create_doctor(doctor: doctorSchema.DoctorCreate, db: Session = Depends
 
     if(len(doctor.password)<8 or  not re.fullmatch(regex, doctor.email)):
         raise HTTPException(status_code=400, detail="password less than 8 or not email address")
-    return server.doctorCRUD.create_doctor(db=db, doctor=doctor)
+    return doctorCRUD.create_doctor(db=db, doctor=doctor)
 @app.get("/doctors/tokencheck")
-async def tokenchecker(token:server.doctorSchema.Token=Depends(server.jwtTokens.decode_access_token)):
+async def tokenchecker(token:doctorSchema.Token=Depends(jwtTokens.decode_access_token)):
     return {"message":"ok"}
 
 @app.post("/doctors/login",response_model=doctorSchema.Token)
 async def login(doctor: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     print(doctor.username)
     print(doctor.password)
-    doctor=server.doctorCRUD.authenticate_user(db, doctor.username, doctor.password)
+    doctor=doctorCRUD.authenticate_user(db, doctor.username, doctor.password)
 
     if not doctor:
         raise HTTPException(
@@ -110,15 +108,15 @@ async def login(doctor: OAuth2PasswordRequestForm = Depends(), db: Session = Dep
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token_expires = timedelta(minutes=server.jwtTokens.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = server.jwtTokens.create_access_token(
+    access_token_expires = timedelta(minutes=jwtTokens.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = jwtTokens.create_access_token(
         data={"sub": str(doctor.id),"displayName":doctor.displayName,"type":"doctor"}, expires_delta=access_token_expires
     )
     return {"token": access_token,"token_type":"bearer"}
 
 @app.get("/doctors/profile",response_model=doctorSchema.Doctor)
-async def getProfile(token:server.doctorSchema.Token=Depends(server.jwtTokens.decode_access_token), db: Session = Depends(get_db)):
-    doctor=server.doctorCRUD.get_user_by_id(db, token.id)
+async def getProfile(token:doctorSchema.Token=Depends(jwtTokens.decode_access_token), db: Session = Depends(get_db)):
+    doctor=doctorCRUD.get_user_by_id(db, token.id)
     if not doctor:
         raise HTTPException(
             status_code=404,
@@ -127,18 +125,18 @@ async def getProfile(token:server.doctorSchema.Token=Depends(server.jwtTokens.de
     return doctor
 
 @app.put("/doctors/profile",response_model=doctorSchema.Doctor)
-async def getProfile(doctorUpdated:server.doctorSchema.DoctorBase,token:server.doctorSchema.Token=Depends(server.jwtTokens.decode_access_token), db: Session = Depends(get_db)):
-    doctor=server.doctorCRUD.get_user_by_id(db, token.id)
+async def getProfile(doctorUpdated:doctorSchema.DoctorBase,token:doctorSchema.Token=Depends(jwtTokens.decode_access_token), db: Session = Depends(get_db)):
+    doctor=doctorCRUD.get_user_by_id(db, token.id)
     if not doctor:
         raise HTTPException(
             status_code=404,
             detail="Doctor not found",
         )
-    doctor=server.doctorCRUD.update_user(db, doctorUpdated, doctor)
+    doctor=doctorCRUD.update_user(db, doctorUpdated, doctor)
     return doctor
 
 @app.post("/doctors/profile/picture")
-async def upload_file(file: UploadFile = File(...),token:server.doctorSchema.Token=Depends(server.jwtTokens.decode_access_token)):
+async def upload_file(file: UploadFile = File(...),token:doctorSchema.Token=Depends(jwtTokens.decode_access_token)):
     if file.filename == '':
         flash('No selected file')
         return redirect(request.url)
@@ -155,19 +153,19 @@ async def upload_file(file: UploadFile = File(...),token:server.doctorSchema.Tok
 status_code=200)
 
 @app.delete("/doctors/logout")
-async def logout(token:server.doctorSchema.Token=Depends(server.jwtTokens.decode_access_token), db: Session = Depends(get_db)):
+async def logout(token:doctorSchema.Token=Depends(jwtTokens.decode_access_token), db: Session = Depends(get_db)):
     return {"message":"logout success"}
 
 @app.post("/doctors/patients",response_model=patientSchema.Patient)
-async def add_new_patient(patient:server.patientSchema.PatientBase,token:server.doctorSchema.Token=Depends(server.jwtTokens.decode_access_token), db: Session = Depends(get_db)):
-    db_patient = server.patientCRUD.get_user_by_fullName(db, fullName=patient.fullName,token=token.id)
+async def add_new_patient(patient:patientSchema.PatientBase,token:doctorSchema.Token=Depends(jwtTokens.decode_access_token), db: Session = Depends(get_db)):
+    db_patient = patientCRUD.get_user_by_fullName(db, fullName=patient.fullName,token=token.id)
     if db_patient :
         raise HTTPException(status_code=400, detail="FullName already registered")
-    return server.patientCRUD.create_patient(db=db, patient=patient,token=token)
+    return patientCRUD.create_patient(db=db, patient=patient,token=token)
 
 @app.put("/doctors/patients/{patient_id}",response_model=patientSchema.Patient)
-async def update_patient(patient_id,patientUpdated:server.patientSchema.PatientBase,token:server.doctorSchema.Token=Depends(server.jwtTokens.decode_access_token), db: Session = Depends(get_db)):
-    patient=server.patientCRUD.get_patient_by_id(db, patient_id)
+async def update_patient(patient_id,patientUpdated:patientSchema.PatientBase,token:doctorSchema.Token=Depends(jwtTokens.decode_access_token), db: Session = Depends(get_db)):
+    patient=patientCRUD.get_patient_by_id(db, patient_id)
     if not patient:
         raise HTTPException(
             status_code=404,
@@ -175,16 +173,16 @@ async def update_patient(patient_id,patientUpdated:server.patientSchema.PatientB
         )
     if patient.doctor_id !=token.id:
         raise HTTPException(status_code=404,detail="patient not found")
-    patient=server.patientCRUD.update_patient(db, patientUpdated, patient)
+    patient=patientCRUD.update_patient(db, patientUpdated, patient)
     return patient
 
 @app.get("/doctors/patients/getallpatients")
-async def getallpatients(token:server.doctorSchema.Token=Depends(server.jwtTokens.decode_access_token), db: Session = Depends(get_db)):
+async def getallpatients(token:doctorSchema.Token=Depends(jwtTokens.decode_access_token), db: Session = Depends(get_db)):
     print("aaaaaa")
-    return server.doctorCRUD.get_patients_by_doctor_id(db, token.id)
+    return doctorCRUD.get_patients_by_doctor_id(db, token.id)
 @app.get("/doctors/patients/{patient_id}")
-async def get_patient(patient_id,token:server.doctorSchema.Token=Depends(server.jwtTokens.decode_access_token), db: Session = Depends(get_db)):
-    patient=server.patientCRUD.get_patient_by_id(db, patient_id)
+async def get_patient(patient_id,token:doctorSchema.Token=Depends(jwtTokens.decode_access_token), db: Session = Depends(get_db)):
+    patient=patientCRUD.get_patient_by_id(db, patient_id)
 
     if not patient:
         raise HTTPException(
@@ -202,12 +200,12 @@ async def get_patient(patient_id,token:server.doctorSchema.Token=Depends(server.
     return patient
 
 @app.delete("/doctors/patients/{patient_id}")
-async def delete_patient(patient_id,token:server.doctorSchema.Token=Depends(server.jwtTokens.decode_access_token), db: Session = Depends(get_db)):
-    return server.patientCRUD.delete_patient(db, patient_id, token)
+async def delete_patient(patient_id,token:doctorSchema.Token=Depends(jwtTokens.decode_access_token), db: Session = Depends(get_db)):
+    return patientCRUD.delete_patient(db, patient_id, token)
 
 @app.post("/doctors/patients/{patient_id}/medicaldata",response_model=patientMedicalDataSchema.PatientMedicalData)
-async def addmedicaldata(patientMedicalData:server.patientMedicalDataSchema.PatientMedicalDataBase,patient_id,token:server.doctorSchema.Token=Depends(server.jwtTokens.decode_access_token), db: Session = Depends(get_db)):
-    patient=server.patientCRUD.get_patient_by_id(db, patient_id)
+async def addmedicaldata(patientMedicalData:patientMedicalDataSchema.PatientMedicalDataBase,patient_id,token:doctorSchema.Token=Depends(jwtTokens.decode_access_token), db: Session = Depends(get_db)):
+    patient=patientCRUD.get_patient_by_id(db, patient_id)
 
     if not patient:
         raise HTTPException(
@@ -219,18 +217,18 @@ async def addmedicaldata(patientMedicalData:server.patientMedicalDataSchema.Pati
             status_code=404,
             detail="patient not found",
         )
-    patientMedicalData=server.PatientMedicalDataCRUD.create_patient_Medical_Data(db, patient_id, patientMedicalData)
+    patientMedicalData=PatientMedicalDataCRUD.create_patient_Medical_Data(db, patient_id, patientMedicalData)
     return patientMedicalData
 
 @app.get("doctors/patients/{patient_id}/medicaldata/getallmedicaldata")
-async def getallmedicaldataofpatient(patient_id,token:server.doctorSchema.Token=Depends(server.jwtTokens.decode_access_token), db: Session = Depends(get_db)):
-    return server.patientCRUD.get_medical_data_of_patient(db, patient_id,token.id)
+async def getallmedicaldataofpatient(patient_id,token:doctorSchema.Token=Depends(jwtTokens.decode_access_token), db: Session = Depends(get_db)):
+    return patientCRUD.get_medical_data_of_patient(db, patient_id,token.id)
 
 @app.get("/doctors/patients/{patient_id}/medicaldata/{medicaldata_id}")
-async def getmedicaldata(patient_id,medicaldata_id,token:server.doctorSchema.Token=Depends(server.jwtTokens.decode_access_token), db: Session = Depends(get_db)):
+async def getmedicaldata(patient_id,medicaldata_id,token:doctorSchema.Token=Depends(jwtTokens.decode_access_token), db: Session = Depends(get_db)):
     if(medicaldata_id =="getallmedicaldata"):
-        return server.patientCRUD.get_medical_data_of_patient(db, patient_id,token.id)
-    medicaldata=server.PatientMedicalDataCRUD.get_patient_Medical_Data_by_id(db, medicaldata_id)
+        return patientCRUD.get_medical_data_of_patient(db, patient_id,token.id)
+    medicaldata=PatientMedicalDataCRUD.get_patient_Medical_Data_by_id(db, medicaldata_id)
     if not medicaldata:
             raise HTTPException(
             status_code=404,
@@ -245,8 +243,8 @@ async def getmedicaldata(patient_id,medicaldata_id,token:server.doctorSchema.Tok
     return medicaldata
 
 @app.put("/doctors/patients/{patient_id}/medicaldata/{medicaldata_id}",response_model=patientMedicalDataSchema.PatientMedicalData)
-async def update_patient_Medical_Data(patient_id,medicaldata_id,patientMedicalDataUpdated:server.patientMedicalDataSchema.PatientMedicalDataBase,token:server.doctorSchema.Token=Depends(server.jwtTokens.decode_access_token), db: Session = Depends(get_db)):
-    patientMedicalData=server.PatientMedicalDataCRUD.get_patient_Medical_Data_by_id(db, medicaldata_id)
+async def update_patient_Medical_Data(patient_id,medicaldata_id,patientMedicalDataUpdated:patientMedicalDataSchema.PatientMedicalDataBase,token:doctorSchema.Token=Depends(jwtTokens.decode_access_token), db: Session = Depends(get_db)):
+    patientMedicalData=PatientMedicalDataCRUD.get_patient_Medical_Data_by_id(db, medicaldata_id)
     if not patientMedicalData:
         raise HTTPException(
             status_code=404,
@@ -254,12 +252,12 @@ async def update_patient_Medical_Data(patient_id,medicaldata_id,patientMedicalDa
         )
     if patientMedicalData.patient_id == patient_id or medicaldata.patientdata.doctor_id!=token.id:
         raise HTTPException(status_code=404,detail="patientMedicalData not found")
-    patient=server.PatientMedicalDataCRUD.update_patient_Medical_Data(db, patientMedicalDataUpdated, patientMedicalData)
+    patient=PatientMedicalDataCRUD.update_patient_Medical_Data(db, patientMedicalDataUpdated, patientMedicalData)
     return patient
 
 @app.delete("/doctors/patients/{patient_id}/medicaldata/{medicaldata_id}")
-async def delete(patient_id,medicaldata_id,token:server.doctorSchema.Token=Depends(server.jwtTokens.decode_access_token), db: Session = Depends(get_db)):
-    return server.PatientMedicalDataCRUD.delete_patient_Medical_Data(db, medicaldata_id, patient_id,token)
+async def delete(patient_id,medicaldata_id,token:doctorSchema.Token=Depends(jwtTokens.decode_access_token), db: Session = Depends(get_db)):
+    return PatientMedicalDataCRUD.delete_patient_Medical_Data(db, medicaldata_id, patient_id,token)
 @app.post('/uploader')
 async def upload_file(file: UploadFile = File(...)):
         # check if the post request has the file part

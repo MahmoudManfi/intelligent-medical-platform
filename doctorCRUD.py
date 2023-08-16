@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
-import server.doctorModel
-from . import doctorSchema
+import doctorModel
+import doctorSchema
 from fastapi import HTTPException
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -13,14 +13,14 @@ def get_password_hash(password):
     return pwd_context.hash(password)
 
 def get_user_by_email(db: Session, email: str):
-    return db.query(server.doctorModel.Doctor).filter(server.doctorModel.Doctor.email == email).first()
+    return db.query(doctorModel.Doctor).filter(doctorModel.Doctor.email == email).first()
 
 def get_user_by_id(db: Session, id: str):
-    return db.query(server.doctorModel.Doctor).filter(server.doctorModel.Doctor.id == id).first()
+    return db.query(doctorModel.Doctor).filter(doctorModel.Doctor.id == id).first()
 
 def create_doctor(db: Session, doctor: doctorSchema.DoctorCreate):
     try:
-        db_doctor = server.doctorModel.Doctor(email=doctor.email, password=get_password_hash(doctor.password),displayName=doctor.displayName)
+        db_doctor = doctorModel.Doctor(email=doctor.email, password=get_password_hash(doctor.password),displayName=doctor.displayName)
         db.add(db_doctor)
         db.commit()
         db.refresh(db_doctor)
@@ -55,8 +55,8 @@ def update_user(db:Session(),doctorUpdated,doctor):
         doctor.contactNumber=doctorUpdated.contactNumber
         doctor.fees=doctorUpdated.fees
         doctor.url=doctorUpdated.url
-       
-        db.commit() 
+
+        db.commit()
     except:
         raise HTTPException(
             status_code=500,
