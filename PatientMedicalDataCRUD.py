@@ -1,5 +1,4 @@
 from sqlalchemy.orm import Session
-import patientModel
 import patientMedicalDataModel
 import patientMedicalDataSchema
 from fastapi import HTTPException

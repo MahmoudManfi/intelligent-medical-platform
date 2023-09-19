@@ -1,5 +1,4 @@
 from pydantic import BaseModel
-from typing import Optional,Union
 #import server.patientModel
 class PatientMedicalDataBase(BaseModel):
     Course : str

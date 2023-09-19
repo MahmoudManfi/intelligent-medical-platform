@@ -5,6 +5,8 @@ dist
 my_env
 tmp.ipynb
 tmp.py
+tmp
+dataSet
 sql_app.db
 migrations
 models

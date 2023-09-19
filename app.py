@@ -1,23 +1,15 @@
-from fastapi import FastAPI, UploadFile, File,Depends,HTTPException, Header,status
+from fastapi import FastAPI, UploadFile, Query, Form, File, Depends,HTTPException, Header,status
 import os
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-import tensorflow as tf
 from tensorflow.keras.preprocessing import image
-import io
 import re
-from typing import Optional
-from datetime import datetime, timedelta
-from PIL import Image
-import base64
+from datetime import timedelta
 from tensorflow.keras.preprocessing.image import ImageDataGenerator, img_to_array,load_img
 import random, string
-from tensorflow import keras
 from fastapi.responses import JSONResponse,FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from keras.models import load_model
 from sqlalchemy.orm import Session
 import jwtTokens
 import doctorCRUD
@@ -25,18 +17,18 @@ import doctorModel
 import doctorSchema
 import patientCRUD
 import PatientMedicalDataCRUD
-import patientModel
 import patientSchema
-import patientMedicalDataModel
 import patientMedicalDataSchema
+from typing import Annotated
 from database import SessionLocal, engine
-from glob import glob
-from werkzeug.utils import secure_filename
+from cancers.lungCancer import LungCancer
+from cancers.cancer import BaseCancer
+from cancers.cervicalCancer import CervicalCancer
+from cancers.brainCancer import BrainCancer
+import cv2
 
 doctorModel.Base.metadata.create_all(bind=engine)
 # token:server.doctorSchema.Token=Depends(server.jwtTokens.decode_access_token)
-
-classes = ["AdenocarcinomaChest Lung Cancer ","Large cell carcinoma Lung Cancer" , "NO Lung Cancer/ NORMAL" , "Squamous cell carcinoma Lung Cancer"]
 
 def get_db():
     db = SessionLocal()
@@ -45,17 +37,9 @@ def get_db():
     finally:
         db.close()
 
-def get_model():
-    tf.device('/CPU:0')
-    global model
-    model = load_model("models/modelcancerlung.h5",compile=False)
-    print(" * Model loaded!")
-
-def preprocess_image(img):
-    x=image.img_to_array(img)
-    x=x/255
-    x=np.expand_dims(x,axis=0)
-    return x
+lungCancer = LungCancer()
+cervicalCancer = CervicalCancer()
+brainCancer = BrainCancer()
 
 UPLOAD_FOLDER = './uploads'
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
@@ -71,7 +55,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-get_model()
 
 @app.get('/')
 async def predict():
@@ -91,7 +74,9 @@ async def create_doctor(doctor: doctorSchema.DoctorCreate, db: Session = Depends
 
     if(len(doctor.password)<8 or  not re.fullmatch(regex, doctor.email)):
         raise HTTPException(status_code=400, detail="password less than 8 or not email address")
+
     return doctorCRUD.create_doctor(db=db, doctor=doctor)
+
 @app.get("/doctors/tokencheck")
 async def tokenchecker(token:doctorSchema.Token=Depends(jwtTokens.decode_access_token)):
     return {"message":"ok"}
@@ -158,7 +143,9 @@ async def logout(token:doctorSchema.Token=Depends(jwtTokens.decode_access_token)
 
 @app.post("/doctors/patients",response_model=patientSchema.Patient)
 async def add_new_patient(patient:patientSchema.PatientBase,token:doctorSchema.Token=Depends(jwtTokens.decode_access_token), db: Session = Depends(get_db)):
+    print(patient)
     db_patient = patientCRUD.get_user_by_fullName(db, fullName=patient.fullName,token=token.id)
+    print(db_patient)
     if db_patient :
         raise HTTPException(status_code=400, detail="FullName already registered")
     return patientCRUD.create_patient(db=db, patient=patient,token=token)
@@ -171,7 +158,7 @@ async def update_patient(patient_id,patientUpdated:patientSchema.PatientBase,tok
             status_code=404,
             detail="patient not found",
         )
-    if patient.doctor_id !=token.id:
+    if patient.doctor_id != token.id:
         raise HTTPException(status_code=404,detail="patient not found")
     patient=patientCRUD.update_patient(db, patientUpdated, patient)
     return patient
@@ -258,8 +245,19 @@ async def update_patient_Medical_Data(patient_id,medicaldata_id,patientMedicalDa
 @app.delete("/doctors/patients/{patient_id}/medicaldata/{medicaldata_id}")
 async def delete(patient_id,medicaldata_id,token:doctorSchema.Token=Depends(jwtTokens.decode_access_token), db: Session = Depends(get_db)):
     return PatientMedicalDataCRUD.delete_patient_Medical_Data(db, medicaldata_id, patient_id,token)
-@app.post('/uploader')
-async def upload_file(file: UploadFile = File(...)):
+
+def get_predict(cancerModel: BaseCancer, filename):
+    path = os.path.join(os.path.abspath(os.path.dirname(__file__)),UPLOAD_FOLDER,filename);
+    if type(cancerModel) == type(BrainCancer()):
+        img = cv2.imread(path)
+        opencvImage = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+        img = cv2.resize(opencvImage,(150,150))
+    else:
+        img  = load_img(path, target_size=cancerModel.get_target_size())
+    return cancerModel.predict(img)
+
+@app.post('/uploader/')
+async def upload_file(cancerType: Annotated[str, Form()], file: UploadFile = File(...)):
         # check if the post request has the file part
        # If the user does not select a file, the browser submits an
         # empty file without a filename.
@@ -275,12 +273,19 @@ async def upload_file(file: UploadFile = File(...)):
             content = await file.read()
             img.write(content)
             img.close()
-        img = load_img(os.path.join(os.path.abspath(os.path.dirname(__file__)),UPLOAD_FOLDER,filename),target_size=(224,224))
-        processed_image = preprocess_image(img)
-        result = classes[np.argmax(model.predict(processed_image))]
-        return  JSONResponse(content={"result": result},
-status_code=200)
+
+        result = 'unknown cancer type'
+
+        if cancerType == 'lungCancer':
+            result = get_predict(lungCancer, filename)
+        elif cancerType == 'cervicalCancer':
+            result = get_predict(cervicalCancer, filename)
+        elif cancerType == 'brainCancer':
+            result = get_predict(brainCancer, filename)
+
+
+        return  JSONResponse(content={"result": result}, status_code=200)
 
 @app.get("/uploads/{filename}")
 async def read_item( filename: str):
-        return FileResponse("server/uploads/"+filename)
+    return FileResponse("uploads/"+filename)

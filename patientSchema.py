@@ -1,17 +1,16 @@
 from pydantic import BaseModel
-from typing import Optional,Union,List
+from typing import Optional,List
 import patientMedicalDataSchema
 class PatientBase(BaseModel):
     fullName: str
-    age: str
+    age: int
     gender: str
     phoneNumber: str
     mariedStatus: str
-    offspring: str
-    phoneNumber: str
+    offspring: int
     relation: Optional[str]=None
-    emergncyFullName: Optional[str]=None
-    emergncyPhoneNumber: Optional[str]=None
+    emergencyFullName: Optional[str]=None
+    emergencyPhoneNumber: Optional[str]=None
     address: str
     allergic:Optional[dict]=None
     familialDiseases: Optional[dict]=None

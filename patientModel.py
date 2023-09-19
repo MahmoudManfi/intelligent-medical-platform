@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String,JSON
+from sqlalchemy import Column, ForeignKey, Integer, String,JSON
 from sqlalchemy.orm import relationship
 
 from database import Base
@@ -13,8 +13,8 @@ class Patient(Base):
     offspring = Column(Integer)
     phoneNumber = Column(String)
     relation = Column(String,nullable=True)
-    emergncyFullName = Column(String,nullable=True)
-    emergncyPhoneNumber= Column(String,nullable=True)
+    emergencyFullName = Column(String,nullable=True)
+    emergencyPhoneNumber= Column(String,nullable=True)
     address = Column(String)
     allergic=Column(JSON,nullable=True)
     familialDiseases=Column(JSON,nullable=True)

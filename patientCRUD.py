@@ -1,7 +1,5 @@
-import json
 from sqlalchemy.orm import Session
 import patientModel
-import doctorModel
 import patientSchema
 import doctorSchema
 from fastapi import HTTPException
@@ -12,15 +10,15 @@ def get_user_by_fullName(db: Session, fullName: str,token:int):
 def create_patient(db: Session,patient: patientSchema.PatientBase,token:doctorSchema.Token):
     try:
         db_patient=patientModel.Patient(fullName=patient.fullName,age=patient.age,gender=patient.gender,mariedStatus=patient.mariedStatus,
-        offspring=patient.offspring,phoneNumber=patient.phoneNumber,relation=patient.relation,emergncyFullName=patient.emergncyFullName,
-        emergncyPhoneNumber=patient.emergncyPhoneNumber,address=patient.address,
+        offspring=patient.offspring,phoneNumber=patient.phoneNumber,relation=patient.relation,emergencyFullName=patient.emergencyFullName,
+        emergencyPhoneNumber=patient.emergencyPhoneNumber,address=patient.address,
         allergic=patient.allergic,familialDiseases=patient.familialDiseases,patientGeneralMedicalHistory=patient.patientGeneralMedicalHistory,
         smokeAlcohol=patient.smokeAlcohol,surgical=patient.surgical,women=patient.women,doctor_id=token.id)
         db.add(db_patient)
         db.commit()
         db.refresh(db_patient)
         return db_patient
-    except:
+    except Exception as e:
         raise HTTPException(
             status_code=500,
             detail="error",
@@ -38,8 +36,8 @@ def update_patient(db:Session,patientUpdated,patient):
         patient.offspring=patientUpdated.offspring
         patient.phoneNumber=patientUpdated.phoneNumber
         patient.relation=patientUpdated.relation
-        patient.emergncyFullName=patientUpdated.emergncyFullName
-        patient.emergncyPhoneNumber=patientUpdated.emergncyPhoneNumber
+        patient.emergencyFullName=patientUpdated.emergencyFullName
+        patient.emergencyPhoneNumber=patientUpdated.emergencyPhoneNumber
         patient.address=patientUpdated.address
         patient.allergic=patientUpdated.allergic
         patient.familialDiseases=patientUpdated.familialDiseases
