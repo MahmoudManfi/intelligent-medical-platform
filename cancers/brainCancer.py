@@ -1,9 +1,4 @@
 import numpy as np
-import keras
-import cv2
-from PIL import Image
-import keras.utils as image
-from keras.callbacks import ModelCheckpoint
 from keras.models import load_model
 from cancers.cancer import BaseCancer
 

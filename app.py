@@ -1,6 +1,5 @@
 from fastapi import FastAPI, UploadFile, Query, Form, File, Depends,HTTPException, Header,status
 import os
-import matplotlib.pyplot as plt
 import numpy as np
 from tensorflow.keras.preprocessing import image
 import re

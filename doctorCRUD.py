@@ -29,8 +29,7 @@ def create_doctor(db: Session, doctor: doctorSchema.DoctorCreate):
         print(exc)
         raise HTTPException(
             status_code=500,
-            detail="error",
-            errorMsg=str(exc)
+            detail="error"
         )
 
 def authenticate_user( db: Session,email: str, password: str):
