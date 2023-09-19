@@ -37,9 +37,9 @@ def get_db():
     finally:
         db.close()
 
-lungCancer = LungCancer()
-cervicalCancer = CervicalCancer()
-brainCancer = BrainCancer()
+# lungCancer = LungCancer()
+# cervicalCancer = CervicalCancer()
+# brainCancer = BrainCancer()
 
 UPLOAD_FOLDER = './uploads'
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
@@ -276,12 +276,12 @@ async def upload_file(cancerType: Annotated[str, Form()], file: UploadFile = Fil
 
         result = 'unknown cancer type'
 
-        if cancerType == 'lungCancer':
-            result = get_predict(lungCancer, filename)
-        elif cancerType == 'cervicalCancer':
-            result = get_predict(cervicalCancer, filename)
-        elif cancerType == 'brainCancer':
-            result = get_predict(brainCancer, filename)
+        # if cancerType == 'lungCancer':
+        #     result = get_predict(lungCancer, filename)
+        # elif cancerType == 'cervicalCancer':
+        #     result = get_predict(cervicalCancer, filename)
+        # elif cancerType == 'brainCancer':
+        #     result = get_predict(brainCancer, filename)
 
 
         return  JSONResponse(content={"result": result}, status_code=200)
