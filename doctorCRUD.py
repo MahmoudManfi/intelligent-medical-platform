@@ -25,7 +25,8 @@ def create_doctor(db: Session, doctor: doctorSchema.DoctorCreate):
         db.commit()
         db.refresh(db_doctor)
         return db_doctor
-    except:
+    except Exception as exc:
+        print(exc)
         raise HTTPException(
             status_code=500,
             detail="error",
