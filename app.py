@@ -1,10 +1,7 @@
-from fastapi import FastAPI, UploadFile, Query, Form, File, Depends,HTTPException, Header,status
+from fastapi import FastAPI, UploadFile, Form, File, Depends,HTTPException,status
 import os
-import numpy as np
-from tensorflow.keras.preprocessing import image
 import re
 from datetime import timedelta
-from tensorflow.keras.preprocessing.image import ImageDataGenerator, img_to_array,load_img
 import random, string
 from fastapi.responses import JSONResponse,FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,11 +17,7 @@ import patientSchema
 import patientMedicalDataSchema
 from typing import Annotated
 from database import SessionLocal, engine
-from cancers.lungCancer import LungCancer
 from cancers.cancer import BaseCancer
-from cancers.cervicalCancer import CervicalCancer
-from cancers.brainCancer import BrainCancer
-import cv2
 
 doctorModel.Base.metadata.create_all(bind=engine)
 # token:server.doctorSchema.Token=Depends(server.jwtTokens.decode_access_token)
@@ -245,33 +238,33 @@ async def update_patient_Medical_Data(patient_id,medicaldata_id,patientMedicalDa
 async def delete(patient_id,medicaldata_id,token:doctorSchema.Token=Depends(jwtTokens.decode_access_token), db: Session = Depends(get_db)):
     return PatientMedicalDataCRUD.delete_patient_Medical_Data(db, medicaldata_id, patient_id,token)
 
-def get_predict(cancerModel: BaseCancer, filename):
-    path = os.path.join(os.path.abspath(os.path.dirname(__file__)),UPLOAD_FOLDER,filename);
-    if type(cancerModel) == type(BrainCancer()):
-        img = cv2.imread(path)
-        opencvImage = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-        img = cv2.resize(opencvImage,(150,150))
-    else:
-        img  = load_img(path, target_size=cancerModel.get_target_size())
-    return cancerModel.predict(img)
+# def get_predict(cancerModel: BaseCancer, filename):
+#     path = os.path.join(os.path.abspath(os.path.dirname(__file__)),UPLOAD_FOLDER,filename);
+#     if type(cancerModel) == type(BrainCancer()):
+#         img = cv2.imread(path)
+#         opencvImage = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+#         img = cv2.resize(opencvImage,(150,150))
+#     else:
+#         img  = load_img(path, target_size=cancerModel.get_target_size())
+#     return cancerModel.predict(img)
 
 @app.post('/uploader/')
 async def upload_file(cancerType: Annotated[str, Form()], file: UploadFile = File(...)):
         # check if the post request has the file part
        # If the user does not select a file, the browser submits an
         # empty file without a filename.
-    if file.filename == '':
-        flash('No selected file')
-        return redirect(request.url)
+    # if file.filename == '':
+    #     flash('No selected file')
+    #     return redirect(request.url)
 
-    if (file.filename):
-        letters = string.ascii_lowercase
-        filename = ''.join(random.choice(letters) for i in range(12))+os.path.splitext(file.filename)[1]
-        #os.path.join(os.path.abspath(os.path.dirname(__file__)),UPLOAD_FOLDER,filename)
-        with open(os.path.join(os.path.abspath(os.path.dirname(__file__)),UPLOAD_FOLDER,filename),'wb') as img:
-            content = await file.read()
-            img.write(content)
-            img.close()
+    # if (file.filename):
+    #     letters = string.ascii_lowercase
+    #     filename = ''.join(random.choice(letters) for i in range(12))+os.path.splitext(file.filename)[1]
+    #     #os.path.join(os.path.abspath(os.path.dirname(__file__)),UPLOAD_FOLDER,filename)
+    #     with open(os.path.join(os.path.abspath(os.path.dirname(__file__)),UPLOAD_FOLDER,filename),'wb') as img:
+    #         content = await file.read()
+    #         img.write(content)
+    #         img.close()
 
         result = 'unknown cancer type'
 

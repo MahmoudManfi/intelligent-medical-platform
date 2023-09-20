@@ -25,11 +25,10 @@ def create_doctor(db: Session, doctor: doctorSchema.DoctorCreate):
         db.commit()
         db.refresh(db_doctor)
         return db_doctor
-    except Exception as exc:
-        print(exc)
+    except:
         raise HTTPException(
             status_code=500,
-            detail="error"
+            detail="error",
         )
 
 def authenticate_user( db: Session,email: str, password: str):
