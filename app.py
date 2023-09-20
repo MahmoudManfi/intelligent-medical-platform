@@ -17,7 +17,6 @@ import patientSchema
 import patientMedicalDataSchema
 from typing import Annotated
 from database import SessionLocal, engine
-from cancers.cancer import BaseCancer
 
 doctorModel.Base.metadata.create_all(bind=engine)
 # token:server.doctorSchema.Token=Depends(server.jwtTokens.decode_access_token)
